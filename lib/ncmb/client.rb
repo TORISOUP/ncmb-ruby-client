@@ -10,31 +10,32 @@ module NCMB
   @application_key = nil
   @client_key = nil
   @@client = nil
-  
+
   class Client
     include NCMB
     attr_accessor :application_key, :client_key, :domain, :api_version
+
     def initialize(params = {})
-      @domain          = NCMB::DOMAIN
-      @api_version     = NCMB::API_VERSION
+      @domain = NCMB::DOMAIN
+      @api_version = NCMB::API_VERSION
       @application_key = params[:application_key]
-      @client_key      = params[:client_key]
-    end
-    
-    def get(path, params)
-      request :get, path, params
-    end
-    
-    def post(path, params)
-      request :post, path, params
+      @client_key = params[:client_key]
     end
 
-    def put(path, params)
-      request :put, path, params
+    def get(path:, params:, session_token: nil)
+      request :get, path, params, session_token
     end
-    
-    def delete(path)
-      request :delete, path
+
+    def post(path:, params:, session_token: nil)
+      request :post, path, params, session_token
+    end
+
+    def put(path:, params:, session_token: nil)
+      request :put, path, params, session_token
+    end
+
+    def delete(path:, session_token: nil)
+      request :delete, path, {}, session_token
     end
 
     def array2hash(ary)
@@ -49,7 +50,7 @@ module NCMB
       end
       new_v
     end
-    
+
     def encode_query(queries = {})
       results = {}
       queries.each do |k, v|
@@ -77,40 +78,44 @@ module NCMB
         "#{key}=#{value}"
       end
     end
-    
+
     def generate_signature(method, path, now = nil, queries = {})
       params_base = {
-        "SignatureMethod" => "HmacSHA256",
-        "SignatureVersion" => "2",
-        "X-NCMB-Application-Key" => @application_key
+          "SignatureMethod" => "HmacSHA256",
+          "SignatureVersion" => "2",
+          "X-NCMB-Application-Key" => @application_key
       }
       params = method == :get ? params_base.merge(encode_query(queries)) : params_base
       now ||= Time.now.utc.iso8601
       params = params.merge "X-NCMB-Timestamp" => now
-      params = params.sort_by{|a, b| a.to_s}.to_h
+      params = params.sort_by { |a, b| a.to_s }.to_h
       signature_base = []
       signature_base << method.upcase
       signature_base << @domain
       signature_base << path
-      signature_base << params.collect{|k,v| "#{k}=#{v}"}.join("&")
+      signature_base << params.collect { |k, v| "#{k}=#{v}" }.join("&")
       signature = Base64.encode64(OpenSSL::HMAC.digest(OpenSSL::Digest.new('sha256'), @client_key, signature_base.join("\n"))).strip()
     end
-    
-    def request(method, path, queries = {})
+
+    def request(method, path, queries = {}, session_toke =nil)
       now = Time.now.utc.iso8601
       signature = generate_signature(method, path, now, queries)
       query = hash2query(queries).join("&")
       http = Net::HTTP.new(@domain, 443)
       http.use_ssl=true
       headers = {
-        "X-NCMB-Application-Key" => @application_key,
-        "X-NCMB-Signature" => signature,
-        "X-NCMB-Timestamp" => now,
-        "Content-Type" => 'application/json'
+          "X-NCMB-Application-Key" => @application_key,
+          "X-NCMB-Signature" => signature,
+          "X-NCMB-Timestamp" => now,
+          "Content-Type" => 'application/json'
       }
+      if (!session_toke.nil?)
+        headers["X-NCMB-Apps-Session-Token"] = session_toke
+      end
       if method == :get
         path = path + URI.escape((query == '' ? "" : "?"+query), /[^-_.!~*'()a-zA-Z\d;\/?@&=+$,#]/)
-        return JSON.parse(http.get(path, headers).body, symbolize_names: true)
+        result = http.get(path, headers).body
+        return JSON.parse(result, symbolize_names: true) if result != ''
       elsif method == :post
         return JSON.parse(http.post(path, queries.to_json, headers).body, symbolize_names: true)
       elsif method == :put
@@ -121,11 +126,11 @@ module NCMB
       end
     end
   end
-  
+
   def NCMB.initialize(params = {})
     defaulted = {
-      application_key: ENV["NCMB_APPLICATION_KEY"],
-      client_key:      ENV["NCMB_CLIENT_KEY"]
+        application_key: ENV["NCMB_APPLICATION_KEY"],
+        client_key: ENV["NCMB_CLIENT_KEY"]
     }
     defaulted.merge!(params)
     @@client = Client.new(defaulted)
