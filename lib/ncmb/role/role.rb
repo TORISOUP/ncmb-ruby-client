@@ -9,6 +9,10 @@ module NCMB
       @base_path ||= "/#{@@client.api_version}/roles"
     end
 
+    private def users_path
+      @user_path ||= "/#{@@client.api_version}/users"
+    end
+
     def initialize(object_id, role_name)
       @object_id = object_id
       @role_name = role_name
@@ -20,6 +24,20 @@ module NCMB
 
     def remove_user(user_object_id, session_token = nil)
       update_user_role(false, user_object_id, session_token)
+    end
+
+    def get_users(session_token = nil)
+      data = {
+          "$relatedTo": {
+              "key": "belongUser",
+              "object": {
+                  "__type": "Pointer",
+                  "className": "role",
+                  "objectId": @object_id
+              }
+          }
+      }.to_json
+      @@client.get(path: users_path, params: {"where": data}, session_token: session_token)
     end
 
     private

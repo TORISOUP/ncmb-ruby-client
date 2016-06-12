@@ -114,7 +114,8 @@ module NCMB
       end
       if method == :get
         path = path + URI.escape((query == '' ? "" : "?"+query), /[^-_.!~*'()a-zA-Z\d;\/?@&=+$,#]/)
-        return JSON.parse(http.get(path, headers).body, symbolize_names: true)
+        result = http.get(path, headers).body
+        return JSON.parse(result, symbolize_names: true) if result != ''
       elsif method == :post
         return JSON.parse(http.post(path, queries.to_json, headers).body, symbolize_names: true)
       elsif method == :put

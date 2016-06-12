@@ -6,4 +6,5 @@ require 'yaml'
 yaml = YAML.load_file(File.join(File.dirname(__FILE__), '..', 'setting.yml'))
 NCMB.initialize application_key: yaml['application_key'], client_key: yaml['client_key']
 
-client = NCMB::UserClient.new
+client = NCMB::UserClient.new("")
+client.get("")

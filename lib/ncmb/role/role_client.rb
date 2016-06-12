@@ -24,7 +24,8 @@ module NCMB
       data_array = result[:results]
       data_array.map { |x|
         Role.new(x[:objectId], x[:roleName])
-      }
+      }.first
     end
+
   end
 end
