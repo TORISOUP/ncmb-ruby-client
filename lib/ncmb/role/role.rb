@@ -26,19 +26,6 @@ module NCMB
       update_user_role(false, user_object_id, session_token)
     end
 
-    def get_users(session_token = nil)
-      data = {
-          "$relatedTo": {
-              "key": "belongUser",
-              "object": {
-                  "__type": "Pointer",
-                  "className": "role",
-                  "objectId": @object_id
-              }
-          }
-      }.to_json
-      @@client.get(path: users_path, params: {"where": data}, session_token: session_token)
-    end
 
     private
     def update_user_role(is_add, user_object_id, session_token)

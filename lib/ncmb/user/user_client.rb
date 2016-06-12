@@ -12,7 +12,7 @@ module NCMB
 
     def get(user_object_id)
       path = "#{base_path}/#{user_object_id}"
-      p @@client.get(path: path, params: {}, session_token: @session_token)
+      @@client.get(path: path, params: {}, session_token: @session_token)
     end
 
   end
